@@ -7,6 +7,7 @@
 | 工具 | 指令 | 說明 |
 |------|------|------|
 | [youtube-to-notion](commands/youtube-to-notion.md) | `/youtube-to-notion <URL>` | 自動截圖、整理重點，寫入 Notion 資料庫 |
+| [save-to-notion](commands/save-to-notion.md) | `/save-to-notion` | 整理對話技術重點，寫入 Notion 技術筆記資料庫 |
 
 ## 安裝方式
 
