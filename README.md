@@ -8,6 +8,7 @@
 |------|------|------|
 | [youtube-to-notion](commands/youtube-to-notion.md) | `/youtube-to-notion <URL>` | 整理 YouTube 影片重點摘要，自動建立 Notion 筆記頁面 |
 | [save-to-notion](commands/save-to-notion.md) | `/save-to-notion` | 整理對話技術重點，寫入 Notion 技術筆記資料庫 |
+| [figma-to-scss](commands/figma-to-scss.md) | `/figma-to-scss <URL>` | 從 Figma 自動讀取 design token，輸出 SCSS / CSS / JSON 等格式 |
 
 ## 安裝方式
 
