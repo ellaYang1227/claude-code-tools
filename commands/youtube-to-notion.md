@@ -127,6 +127,15 @@ for name, prop in props.items():
 - `狀態` → 固定填「**已完成**」
 - `建立者` → Notion 自動填入，不需設定
 
+另外詢問**延伸閱讀**（可選）：
+- 是否加入「延伸閱讀」區塊？
+- 若是，請使用者提供各條目的**標題**與 **URL**（可多筆），來源不限：
+  - 自己的 Notion 頁面（貼上 Notion 頁面 URL）
+  - 外部文章或網頁（貼上任意 URL）
+- 輸入格式：`標題 | URL`，每條一行；標題應與原文章/頁面標題相同
+- 整理後存入 `data['further_reading']`，格式為 `[{'title': '...', 'url': '...'}]`
+- 無論來源類型，一律以 `bulleted_list_item` 呈現，文字為標題並附超連結
+
 ---
 
 ## 步驟 4：擷取影片截圖
@@ -188,7 +197,11 @@ TMPDIR = '<TMPDIR>'
 data = {
     'title': '<TITLE>',
     'summary': '<SUMMARY>',
-    'keypoints': ['<KP1>', '<KP2>', '...']  # 數量依影片內容決定，不設上限
+    'keypoints': ['<KP1>', '<KP2>', '...'],  # 數量依影片內容決定，不設上限
+    # 延伸閱讀（可選）：由步驟 3 使用者回答填入，空列表則不產生該區塊
+    'further_reading': [
+        # {'title': '文章標題', 'url': 'https://...'},
+    ],
 }
 
 # 欄位值（來源、狀態固定；紀錄起源及其他依步驟 3 使用者回答填入）
@@ -255,12 +268,15 @@ shutil.rmtree(TMPDIR, ignore_errors=True)
 # 5.  [H2] 重點整理
 # 6.  [divider]                  ← H2 標題文字下方（標題 → 分割線 → 內容）
 # 7.  × N：[ 文字（無▶圖示）| 截圖 | 空行 ]  ← 小段落間 1 行，不加分割線
-# 8.  [H2] 資料來源
-# 9.  [divider]                  ← H2 標題文字下方（標題 → 分割線 → 內容）
-# 10. [bookmark]
-# 11. [divider]                  ← 資料來源後（系列導覽前）
-# 12. [paragraph] ← 上一篇：...  ← page mention 或純文字「（目前為最早一篇）」
-# 13. [paragraph] → 下一篇：...  ← page mention 或純文字「（目前為最新一篇）」
+# 8.  [H2] 延伸閱讀              ← 僅 further_reading 非空時產生
+# 9.  [divider]                  ← H2 標題文字下方
+# 10. × M：[bulleted_list_item]  ← 標題文字附超連結（非 bookmark）
+# 11. [H2] 資料來源
+# 12. [divider]                  ← H2 標題文字下方（標題 → 分割線 → 內容）
+# 13. [bookmark]                 ← VIDEO_URL
+# 14. [divider]                  ← 資料來源後（系列導覽前）
+# 15. [paragraph] ← 上一篇：...  ← page mention 或純文字「（目前為最早一篇）」
+# 16. [paragraph] → 下一篇：...  ← page mention 或純文字「（目前為最新一篇）」
 #
 # 分割線原則：
 #   - 摘要 callout 後加一條（結束段落）
@@ -321,6 +337,21 @@ for i, point in enumerate(data['keypoints']):
         {'type': 'text', 'text': {'content': point}}]}})
     content_blocks.append(img_block(src))
     content_blocks.append(empty_para())
+
+if data['further_reading']:
+    content_blocks += [
+        {'object': 'block', 'type': 'heading_2', 'heading_2': {
+            'rich_text': [{'type': 'text', 'text': {'content': '延伸閱讀'}}]}},
+        {'object': 'block', 'type': 'divider', 'divider': {}},
+    ]
+    for item in data['further_reading']:
+        content_blocks.append({
+            'object': 'block', 'type': 'bulleted_list_item',
+            'bulleted_list_item': {'rich_text': [{
+                'type': 'text',
+                'text': {'content': item['title'], 'link': {'url': item['url']}}
+            }]}
+        })
 
 content_blocks += [
     {'object': 'block', 'type': 'heading_2', 'heading_2': {
