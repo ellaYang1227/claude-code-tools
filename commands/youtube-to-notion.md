@@ -5,6 +5,8 @@ argument-hint: <YouTube URL>
 
 用戶提供了 YouTube 影片 URL：**$ARGUMENTS**
 
+> 執行前先讀取共用規範：`C:\Users\ella_yang\.claude\commands\notion-spec.md`
+
 請依序執行以下步驟，過程中主動說明進度。
 
 ---
@@ -77,13 +79,7 @@ except Exception:
 
 ## 步驟 2：整理重點（Claude 直接完成）
 
-根據字幕自行整理：
-- **繁體中文標題**（20 字以內；系列文章需加 EP 前綴，格式：`EP.01 標題`、`EP.02 標題`，依步驟 6 是否為系列文章而定）
-- **摘要**（3～5 句，說明核心內容；開頭不加「本片由 XXX 解說，」等描述語）
-- **重點條列**（每點 20～60 字；不加 ▶ 等前置圖示）
-  - 數量**不設上限**，以影片實際重要概念數量為準
-  - 原則：每個重點都應是獨立且值得記錄的概念，不因湊數而拆細，也不因壓縮而遺漏重要觀點
-  - 短片（< 5 分鐘）通常 3～5 點，長片（> 15 分鐘）可達 8～10 點
+根據字幕自行整理標題、摘要、重點條列（格式規範見 notion-spec.md）。
 
 整理完成後，根據逐字稿分析各重點在影片中出現的大約時間點（秒），用於步驟 4 截圖。
 
@@ -118,14 +114,7 @@ for name, prop in props.items():
         print(f"[{ptype}] '{name}'")
 ```
 
-取得選項後，使用 `AskUserQuestion` 工具詢問使用者以下欄位：
-- `紀錄起源` (select: 上班 / 進修 / 教練 / 面試) → **詢問使用者**
-- `分類`、`程式語言`、`文章分類` → **詢問使用者**
-
-以下欄位**固定值，不詢問**：
-- `來源` → 固定填「**Claude Code CLI**」
-- `狀態` → 固定填「**已完成**」
-- `建立者` → Notion 自動填入，不需設定
+取得選項後，依 notion-spec.md 欄位規則，使用 `AskUserQuestion` 詢問使用者。
 
 另外詢問**延伸閱讀**（可選）：
 - 是否加入「延伸閱讀」區塊？
@@ -259,35 +248,7 @@ for i in range(n_kp):
     print(f'  frame_{i:02d}: {"✅" if src else "⚠️ 改用縮圖"}')
 shutil.rmtree(TMPDIR, ignore_errors=True)
 
-# 頁面結構：
-# 1.  [image]      YouTube thumbnail（放在摘要前）
-# 2.  [callout 📝] 摘要（開頭不加「本片由 XXX 解說，」）
-# 3.  [divider]                  ← 摘要段落結束
-# 4.  [callout 📍] 頁面目錄      color=gray_background，文字 color=orange bold
-#       └─ [table_of_contents]   ← TOC 內嵌於 callout，形成統一背景框
-# 5.  [H2] 重點整理
-# 6.  [divider]                  ← H2 標題文字下方（標題 → 分割線 → 內容）
-# 7.  × N：[ 文字（無▶圖示）| 截圖 | 空行 ]  ← 小段落間 1 行，不加分割線
-# 8.  [H2] 延伸閱讀              ← 僅 further_reading 非空時產生
-# 9.  [divider]                  ← H2 標題文字下方
-# 10. × M：[bulleted_list_item]  ← 標題文字附超連結（非 bookmark）
-# 11. [H2] 資料來源
-# 12. [divider]                  ← H2 標題文字下方（標題 → 分割線 → 內容）
-# 13. [bookmark]                 ← VIDEO_URL
-# 14. [divider]                  ← 資料來源後（系列導覽前）
-# 15. [paragraph] ← 上一篇：...  ← page mention 或純文字「（目前為最早一篇）」
-# 16. [paragraph] → 下一篇：...  ← page mention 或純文字「（目前為最新一篇）」
-#
-# 分割線原則：
-#   - 摘要 callout 後加一條（結束段落）
-#   - 每個 H2 標題文字下方直接加一條（標題 → 分割線 → 內容）
-#   - 小段落（各重點）之間用 1 行空行隔開，不加分割線
-#   - 不在段落末尾/大段落之間加分割線
-#
-# 注意：Notion API blocks.children.append 不支援 block 陣列直接帶 children，
-#       必須先 append callout，取得 ID 後再 append TOC 進去。
-# 注意：更新現有 image block 不可用 file_upload type，需先 delete 再用
-#       after 參數 append 到對應 paragraph 後面。
+# 頁面結構、分割線原則、Notion API 限制見 notion-spec.md
 
 notion = NotionClient(auth=NOTION_TOKEN)
 
