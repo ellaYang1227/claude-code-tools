@@ -1,3 +1,7 @@
+---
+description: 將對話中的技術內容整理並儲存至 Notion 技術筆記資料庫
+---
+
 > 執行前先讀取共用規範：`C:\Users\ella_yang\.claude\commands\notion-spec.md`
 
 請將我們這次對話中最重要的技術內容整理成筆記，
