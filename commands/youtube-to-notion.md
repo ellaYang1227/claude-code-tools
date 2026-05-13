@@ -99,6 +99,17 @@ except Exception:
 - 說明預期結果：「右上角出現 Claude 符號表示安裝成功」
 - 各步驟之間有明確的前後順序關係
 
+### 指令與程式碼的呈現
+
+重點文字中若出現以下內容，使用 `` `backtick` `` 標記，對應到 Notion `inline_code` 樣式：
+- 斜線指令：`/clear`、`/compact`、`/context`
+- 鍵盤快捷鍵：`Escape`、`Ctrl+B`、`Enter`
+- CLI 指令、程式語言關鍵字、檔案名稱
+
+例：`任務完成後用 `/clear`，視窗將滿時用 `/compact` 壓縮釋放空間。`
+
+---
+
 ### 安裝流程或多步驟設定：逐步拆解（圖＋文交錯）
 
 若重點內容是**安裝說明**或**多步驟設定流程**，不用一個重點對一張截圖，改為：
@@ -266,6 +277,18 @@ def upload_image(path):
         print(f'  上傳失敗: {e}')
         return None
 
+def parse_rich_text(text):
+    """將含 `code` 標記的文字轉為 Notion rich_text 陣列（inline_code）"""
+    import re
+    result = []
+    for part in re.split(r'(`[^`]+`)', text):
+        if part.startswith('`') and part.endswith('`') and len(part) > 2:
+            result.append({'type': 'text', 'text': {'content': part[1:-1]},
+                           'annotations': {'code': True}})
+        elif part:
+            result.append({'type': 'text', 'text': {'content': part}})
+    return result
+
 def img_block(src):
     if src:
         return {'object': 'block', 'type': 'image', 'image': src}
@@ -331,8 +354,8 @@ content_blocks = [
 ]
 for i, point in enumerate(data['keypoints']):
     src = sources[i] if i < len(sources) else None
-    content_blocks.append({'object': 'block', 'type': 'paragraph', 'paragraph': {'rich_text': [
-        {'type': 'text', 'text': {'content': point}}]}})
+    content_blocks.append({'object': 'block', 'type': 'paragraph', 'paragraph': {
+        'rich_text': parse_rich_text(point)}})
     content_blocks.append(img_block(src))
     content_blocks.append(empty_para())
 
