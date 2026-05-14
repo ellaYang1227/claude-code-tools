@@ -125,6 +125,49 @@ except Exception:
 
 ---
 
+### 觀念型多主題：分段標題 + 條列式呈現
+
+若影片涵蓋**多個獨立主題**（如同一集介紹 4 種工具、3 個概念），採用以下格式：
+
+- **分段標題**：每個主題前加 `heading_3`，不加分割線
+- **每個重點拆成 2～5 個 `bulleted_list_item`**：每條 bullet 說明一個獨立事實，行首不加前綴符號
+- **截圖緊接在該重點的最後一個 bullet 下方**，再加一個空行 `empty_para` 分隔下一組
+- Notion 排列：`heading_3 → bullet × N → image → empty_para`，主題之間不加分割線
+
+**適用時機：**
+- 影片只有一個主題 → 不加 heading_3，每個重點直接用 bullets + image
+- 影片有多個獨立主題（如 CLAUDE.md / rules / memory / hooks）→ 加 heading_3 分段
+
+### 同一 H3 內有多個子話題：加 sub_heading（bold 段落）
+
+同一 `heading_3` 區段下，若有多組 bullets 各自說明**不同子話題**（如同一工具的「概念說明」和「7 大類規則示範」），在每組 bullets 前加一個 **bold paragraph** 作為次級標籤，讓讀者一眼知道這組在講什麼：
+
+```
+heading_3: CLAUDE.md（默契檔）
+  [KP1 bullets — 不需 sub_heading，緊接在 H3 後無歧義]
+  image → empty
+  bold_para: "CLAUDE.md 兩個常用層級（Global vs Project）"  ← sub_heading
+  [KP2 bullets]
+  image → empty
+  bold_para: "User-level CLAUDE.md 示範 — 七大類規則"       ← sub_heading
+  [KP3 bullets]
+  image → empty
+```
+
+**判斷規則：**
+- 第一組 bullets 緊接在 heading_3 之後 → 通常不需要 sub_heading（heading 已提供上下文）
+- 後續每組 bullets 若無標題將讓讀者迷失 → 加 sub_heading
+- 純條列式資料（如工具清單、規則清單）尤其需要 sub_heading 說明「這是什麼清單」
+
+在 `sections.keypoints` 中，每個 keypoint 可攜帶 `sub_heading` 欄位（可選），對應到 Notion 的 bold paragraph block。
+
+**Markdown 標記支援：**
+- `` `backtick` `` → `inline_code`（路徑、指令、檔名）
+- `**bold**` → `bold`（關鍵詞、重要對比）
+- 兩者可在同一條 bullet 中混用
+
+---
+
 ## 步驟 3：查詢資料庫欄位並詢問使用者
 
 執行以下腳本取得資料庫 schema，**對每個 select / multi_select 空白欄位詢問使用者**如何填寫，狀態統一設為「已完成」：
@@ -234,7 +277,25 @@ TMPDIR = '<TMPDIR>'
 data = {
     'title': '<TITLE>',
     'summary': '<SUMMARY>',
-    'keypoints': ['<KP1>', '<KP2>', '...'],  # 數量依影片內容決定，不設上限
+
+    # ── 多主題觀念型：sections（有 heading_3 分段 + bullets）────────
+    # 單主題時 heading 填 None；只有一個 section 且 heading=None 等同舊 keypoints 模式
+    'sections': [
+        {
+            'heading': '<分段標題 或 None>',    # heading_3 文字
+            'keypoints': [
+                # 第一個 keypoint 緊接 H3，通常不加 sub_heading
+                {'bullets': ['<子點1>', '**bold示範**', '`code示範`']},
+                # 後續 keypoint 若說明不同子話題，加 sub_heading（bold 段落）
+                {'sub_heading': '<次級標籤 或省略>', 'bullets': ['<子點1>', '<子點2>']},
+            ]
+        },
+        # 可繼續加 section...
+    ],
+
+    # ── 單主題觀念型 / 操作說明型：保留舊 keypoints 格式（擇一使用）─
+    # 'keypoints': ['<KP1>', '<KP2>', '...'],
+
     # 延伸閱讀（可選）：由步驟 3 使用者回答填入，空列表則不產生該區塊
     'further_reading': [
         # {'title': '文章標題', 'url': 'https://...'},
@@ -278,13 +339,16 @@ def upload_image(path):
         return None
 
 def parse_rich_text(text):
-    """將含 `code` 標記的文字轉為 Notion rich_text 陣列（inline_code）"""
+    """將含 `code`、**bold** 標記的文字轉為 Notion rich_text 陣列"""
     import re
     result = []
-    for part in re.split(r'(`[^`]+`)', text):
+    for part in re.split(r'(`[^`]+`|\*\*[^*]+\*\*)', text):
         if part.startswith('`') and part.endswith('`') and len(part) > 2:
             result.append({'type': 'text', 'text': {'content': part[1:-1]},
                            'annotations': {'code': True}})
+        elif part.startswith('**') and part.endswith('**') and len(part) > 4:
+            result.append({'type': 'text', 'text': {'content': part[2:-2]},
+                           'annotations': {'bold': True}})
         elif part:
             result.append({'type': 'text', 'text': {'content': part}})
     return result
@@ -298,10 +362,14 @@ def img_block(src):
 def empty_para():
     return {'object': 'block', 'type': 'paragraph', 'paragraph': {'rich_text': []}}
 
-n_kp = len(data['keypoints'])
+# 計算總截圖數（sections 模式或舊 keypoints 模式）
+total_frames = (
+    sum(len(sec['keypoints']) for sec in data.get('sections', []))
+    or len(data.get('keypoints', []))
+)
 print('上傳截圖...')
 sources = []
-for i in range(n_kp):
+for i in range(total_frames):
     path = os.path.join(TMPDIR, f'frame_{i:02d}.jpg')
     src = upload_image(path)
     sources.append(src)
@@ -346,13 +414,36 @@ notion.blocks.children.append(
                'table_of_contents': {'color': 'default'}}]
 )
 
-# ── 重點整理（H2 → divider → KPs）+ 資料來源（H2 → divider → bookmark）
+# ── 重點整理（H2 → divider → sections/keypoints）────────────────
 content_blocks = [
     {'object': 'block', 'type': 'heading_2', 'heading_2': {
         'rich_text': [{'type': 'text', 'text': {'content': '重點整理'}}]}},
     {'object': 'block', 'type': 'divider', 'divider': {}},
 ]
-for i, point in enumerate(data['keypoints']):
+
+# ── sections 模式（多主題觀念型：heading_3 + bullets）───────────
+frame_idx = 0
+for sec in data.get('sections', []):
+    if sec.get('heading'):
+        content_blocks.append({'object': 'block', 'type': 'heading_3', 'heading_3': {
+            'rich_text': [{'type': 'text', 'text': {'content': sec['heading']}}]}})
+    for kp in sec['keypoints']:
+        # sub_heading：同一 H3 內不同子話題的次級標籤（bold 段落）
+        if kp.get('sub_heading'):
+            content_blocks.append({'object': 'block', 'type': 'paragraph',
+                'paragraph': {'rich_text': [{'type': 'text',
+                    'text': {'content': kp['sub_heading']},
+                    'annotations': {'bold': True}}]}})
+        for b in kp['bullets']:
+            content_blocks.append({'object': 'block', 'type': 'bulleted_list_item',
+                'bulleted_list_item': {'rich_text': parse_rich_text(b)}})
+        src = sources[frame_idx] if frame_idx < len(sources) else None
+        content_blocks.append(img_block(src))
+        content_blocks.append(empty_para())
+        frame_idx += 1
+
+# ── 舊版 keypoints 相容（單主題觀念型 / 操作說明型）────────────
+for i, point in enumerate(data.get('keypoints', [])):
     src = sources[i] if i < len(sources) else None
     content_blocks.append({'object': 'block', 'type': 'paragraph', 'paragraph': {
         'rich_text': parse_rich_text(point)}})
